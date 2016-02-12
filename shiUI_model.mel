@@ -1,0 +1,238 @@
+//============= Require ===========
+/** require: shiFun_info.mel (askUserInput)*/
+/** require: shi_3rd_model_rePivotUI.mel (pivotMoveUI)*/
+/** require: shi_3rd_model_VertexAlign.mel (Vertex_Align)*/
+/** require: shi_3rd_model_vertexNoise.mel (vertexNoise)*/
+
+loadScript($rootPath+"shi_3rd_model_rePivotUI.mel");
+//============= UI ===========
+
+global proc drawUI_model_poly(){
+    /** Polygon modeling */
+    text -l "pivot";
+    button -l "hist" -c "DeleteHistory;";
+    button -l "-v" -c "setPolygonDisplaySettings(\"verts\");";
+    button -l "cPvt" -c "CenterPivot";
+    button -l "rPvt" -c "pivotMoveUI";
+    
+    /** check face normal */
+    text -l "Check";
+    button -l "facN" -c "ToggleFaceNormalDisplay;";    
+    button -l "BK" -c "ToggleBackfaceGeometry";
+    button -l "invN" -c "ReversePolygonNormals;";
+    button -l "nlHD" -c "SoftPolyEdgeElements 0";
+    
+    text -l "";
+    button -l "-" -c "ToggleBorderEdges;";
+    button -l "=" -c "ChangeEdgeWidth;";
+    button -l "";
+    button -l "UV" -c "TextureViewWindow;";
+    
+    text -l "M|ob"; 
+    // 0 1 +X -X; 2 3 +y -y; 4 5 +z -z;// 0 edge; 1 edge+point; 2 bridge// 0.1";
+    button -l "+" -c "string $selected[] = `ls -sl -fl`;float $c_pos[3] = `xform -q -ws -t $selected[0]`;";
+    button -l "+Xmr" -c "polyMirrorFace -ws 1 -direction 0 -mergeMode 1 -ch 1 -mt 0.01 -p $c_pos[0] $c_pos[1] $c_pos[2]";
+    button -l "+Ymr" -c "polyMirrorFace -ws 1 -direction 2 -mergeMode 1 -ch 1 -mt 0.01 -p $c_pos[0] $c_pos[1] $c_pos[2];";
+    button -l "+Zmr" -c "polyMirrorFace -ws 1 -direction 4 -mergeMode 1 -ch 1 -mergeThreshold 0.01 -p $c_pos[0] $c_pos[1] $c_pos[2];";
+
+    text -l " ";
+    button -l "";
+    button -l "-Xmr" -c "polyMirrorFace -ws 1 -direction 1 -mergeMode 1 -ch 1 -mt 0.01 -p $c_pos[0] $c_pos[1] $c_pos[2];";
+    button -l "-Ymr" -c "polyMirrorFace -ws 1 -direction 3 -mergeMode 1 -ch 1 -mt 0.01 -p $c_pos[0] $c_pos[1] $c_pos[2];";
+    button -l "-Zmr" -c "polyMirrorFace -ws 1 -direction 5 -mergeMode 1 -ch 1 -mt 0.01 -p $c_pos[0] $c_pos[1] $c_pos[2];"; 
+    
+    text -l "Flat"; 
+    button -l "_Y" -c "string $pointGrp[]=`ls -sl -type float3`;scale -a -p $c_pos[0] $c_pos[1] $c_pos[2] 1 0 1 $pointGrp;";
+    button -l "_X" -c "string $pointGrp[]=`ls -sl -type float3`;scale -a -p $c_pos[0] $c_pos[1] $c_pos[2] 0 1 1 $pointGrp;";
+    button -l "_z" -c "string $pointGrp[]=`ls -sl -type float3`;scale -a -p $c_pos[0] $c_pos[1] $c_pos[2] 1 1 0 $pointGrp;";
+    button -l "VAlg" -c "Vertex_Align";
+
+    text -l "M|sl";
+    button -l "mir+" -c "symmetricModelling -e -symmetry true;";
+    button -l "mir-" -c "symmetricModelling -e -symmetry false;";
+    button -l "ws" -c "symmetricModelling -e -about \"world\";";
+    button -l "os" -c "symmetricModelling -e -about \"object\";";
+
+    button -l "x" -c "symmetricModelling -e -axis \"x\";";
+    button -l "y" -c "symmetricModelling -e -axis \"y\";";
+    button -l "z" -c "symmetricModelling -e -axis \"z\";";
+    button -l "";
+    button -l "";
+    
+    text -l "Bool";
+    button -l "rB-x" -c "duplicate -smartTransform;polyBoolOp -op 3 -ch 1 -useThresholds 1 -preserveColor 0;";
+    button -l "";
+    button -l "";
+    button -l "";
+    
+    text -l "Twek";
+    button -l "Nois" -c "vertexNoise";
+    button -l "Brik" -c "DetachComponent;";
+    button -l "F->B" -c "select -r `polyListComponentConversion -ff -te -bo`;";
+    button -l "Shel" -c "ConvertSelectionToShell;";
+    
+    text -l "Layer";
+    button -l "sl>L" -c "string $tmpname[]=`ls -sl`;createDisplayLayer -name ($tmpname[0]+\"Lyr\") -number 1 -nr;";
+    button -l "noLy" -c "editDisplayLayerMembers -noRecurse \"defaultLayer\" `ls -sl`;";
+}
+
+global proc drawUI_model_curve(){
+    /** Curve modeling */
+    separator -style "in";
+    text -l "Curve";
+    separator -style "in";
+    button -l "sl-C" -c "setObjectPickMask \"All\" 0;setObjectPickMask \"Curve\" 1;";
+    button -l "sl-a" -c "setObjectPickMask \"All\" 1;";
+    
+    button -l "ep" -c "EPCurveTool;";
+    button -l "cv" -c "CVCurveTool;";
+    button -l "hist" -c "DeleteHistory;";
+    button -l "-cv" -c "ToggleCVs;";
+    button -l "-ep" -c "ToggleEditPoints;";
+
+    button -l "reCv" -c "RebuildCurveOptions";
+    button -l "re3" -c "rebuildCurve -rpo 1 -rt 0 -end 1 -kr 0 -kcp 0 -kep 1 -kt 0 -s 3 -d 3 -tol 0.01 `ls -sl`;";
+    button -l "re4" -c "rebuildCurve -rpo 1 -rt 0 -end 1 -kr 0 -kcp 0 -kep 1 -kt 0 -s 4 -d 3 -tol 0.01 `ls -sl`;";
+    button -l "re8" -c "rebuildCurve -rpo 1 -rt 0 -end 1 -kr 0 -kcp 0 -kep 1 -kt 0 -s 8 -d 3 -tol 0.01 `ls -sl`;";
+    button -l "";
+
+    button -l "Pcut" -c "DetachCurve;";
+    button -l "Ccut" -c "CutCurve;";
+    button -l "atch " -c "AttachCurve;";
+    button -l "bond" -c "Boundary;";
+    button -l "";
+    
+    text -l "surf";
+    button -l "PrjC" -c "ProjectCurveOnSurface45;";
+    button -l "Trim" -c "TrimTool";
+    button -l "DpSc" -c "DuplicateCurve;";
+    makeHelpBtn("Curve To Do",{"1. nurbs surface convertion","2. curve on surface tool"});
+
+    button -l "Surf" -c "shi_surface;";
+    button -l " ";
+    button -l " ";
+    button -l " ";
+    button -l " ";
+    
+    button -l "++>L" -c "shi_loc_to_line";
+    button -l "+>Cp" -c "shi_loc_to_curve(3)";
+    button -l "+>Ep" -c "shi_loc_to_curve_ep";
+    button -l "cc>c" -c "shi_curve_inbet";
+    button -l "cc>C" -c "shi_curve_inbet_u_ask";
+    
+    button -l "++>F" -c "shi_loc_to_poly";
+    button -l "c->F" -c "shi_curve_to_poly";
+    button -l "G>G" -c "shi_poly_to_poly";
+    button -l "";
+    button -l "+>Cd" -c "string $input=askUserInput(\"Curve Degree: (like 1=< and < CV count)\");if($text!=\"\") {if((int)$input>0) shi_loc_to_curve($input);}";
+}
+
+//==========Functions============
+
+global proc shi_loc_to_line(){
+    /** draw loc into line */
+    string $locArray[]=`ls -sl -fl`;
+    $i=0;
+    $curveGenCmd="curve -d 1 ";
+    for($i=0;$i<size($locArray);$i++){        
+        float $pos[3]=`xform -q -ws -t $locArray[$i]`;
+        $curveGenCmd=$curveGenCmd+"-p "+$pos[0]+" "+$pos[1]+" "+$pos[2]+" ";
+    }
+    $curveGenCmd=$curveGenCmd+";";
+    print ("\n"+$curveGenCmd+"\n");
+    eval($curveGenCmd);
+}
+
+global proc shi_loc_to_curve(int $deg){
+    /** draw loc into cv curve */
+    string $locArray[]=`ls -sl`;
+    string $curveGenCmd="";
+    if($deg>=size($locArray) || $deg<=0) print "\nDegree should be smaller than CV count and at least 1.";
+    else {
+        $curveGenCmd="curve -d "+$deg+" ";
+        for($i=0;$i<size($locArray);$i++){        
+            float $pos[3]=`xform -q -ws -t $locArray[$i]`;
+            $curveGenCmd=$curveGenCmd+"-p "+$pos[0]+" "+$pos[1]+" "+$pos[2]+" ";        
+        }
+        $curveGenCmd=$curveGenCmd+";";
+        print ("\n"+$curveGenCmd+"\n");
+        eval($curveGenCmd);
+    }
+}
+
+global proc shi_loc_to_curve_ep(){
+    /** draw loc into ep curve */
+    string $locArray[]=`ls -sl`;
+    $i=0;
+    $curveGenCmd="curve -d 3 ";
+    for($i=0;$i<size($locArray);$i++){        
+        if(`objExists $locArray[$i]`){
+            float $pos[3]=`xform -q -ws -t $locArray[$i]`;
+            $curveGenCmd=$curveGenCmd+"-ep "+$pos[0]+" "+$pos[1]+" "+$pos[2]+" ";
+        }
+    }
+    $curveGenCmd=$curveGenCmd+";";
+    print ("\n"+$curveGenCmd+"\n");
+    eval($curveGenCmd);
+}
+
+global proc shi_loc_to_poly(){
+    /** draw loc list into poly shape */
+    string $locArray[]=`ls -sl`;
+    string $cmd = "polyCreateFacet -ch on -tx 1 -s 1";
+    for ($i=0; $i<size($locArray); $i++)
+    {
+        $xyzPos = `xform -q -ws -t $locArray[$i]`;
+        $cmd = ($cmd+" -p "+$xyzPos[0]+" "+$xyzPos[1]+" "+$xyzPos[2]+" ");
+    }
+    print($cmd+"\n");
+    eval($cmd);
+}
+
+global proc shi_curve_to_poly(){
+    /** draw curve into poly shape */
+
+    string $selected[]=`ls -sl`;
+    string $curve=$selected[0];
+    $cvs = `getAttr ($curve+".spans")`;
+
+    string $cmd = "polyCreateFacet -ch on -tx 1 -s 1";
+
+    string $myType="cv"; 
+    if($myType=="cv") $cvs=$cvs+2;
+
+    for ($n=0; $n<=$cvs; $n++)
+    {
+        $xyzPos = `xform -q -ws -t ($curve+"."+$myType+"["+$n+"]")`;
+        $cmd = ($cmd+" -p "+$xyzPos[0]+" "+$xyzPos[1]+" "+$xyzPos[2]+" ");
+    }
+    string $newMesh[] = `eval ($cmd)`;
+    print ($cmd);
+}
+
+global proc shi_poly_to_poly(){
+    /** draw poly shape into poly shape */
+    string $selected[]=`ls -sl`;
+    string $src=$selected[0];
+    string $tgt=$selected[1];
+
+    select -r ($src+".vtx[:]");
+    string $selected[]=`ls -sl -fl`;
+    $cnt=size($selected);
+
+    int $i=0;
+    float $pos[3];
+    for($i=0;$i<$cnt;$i++)
+    {
+        $pos=`xform -q -ws -t ($src+".vtx["+$i+"]")`;
+        xform -ws -t $pos[0] $pos[1] $pos[2] ($tgt+".vtx["+$i+"]");
+    }
+
+}
+
+global proc shi_surface(){
+    /** make surface from selected curves */
+    string $selected[]=`ls -sl`;
+    if(size($selected)==1) Planar;
+    else if(size($selected)==2) Loft;
+}
