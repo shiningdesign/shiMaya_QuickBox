@@ -1,0 +1,659 @@
+//========= Require =======
+/** shiFun_info.mel (shi_getNormalFromFace, shi_getNormalFromVtx)*/
+
+//=========  UI   ==========
+global proc drawUI_loc_v2(){
+    button -l "+" -c "shi_loc_center";
+    button -l "p+" -c "shi_loc_pivot_center";
+    button -l "p+r" -c "shi_loc_pivot_rot_center";
+    
+    button -l "bb+" -c "shi_loc_bbox_center";
+    button -l "cb+" -c "shi_loc_comp_bbox_center";
+    button -l "->+" -c "shi_loc_cursor_center";
+    
+    button -l "Ave+" -c "shi_loc_average_center";
+    button -l ".vtx" -c "shi_loc_points_of_objs_center";
+    button -l "N+^" -c "shi_loc_normal_center_v2";
+    
+    button -l "eN>2" -c "shi_loc_edge_normal_center_v2(0)";
+    button -l "eN>c" -c "shi_loc_edge_normal_center_v2(1)";
+    button -l "eN>f" -c "shi_loc_edge_normal_center_v2(2)";
+    
+    button -l "eNcF" -c "shi_loc_edge_normal_center_v2(3)";
+    button -l "4in1" -c "shi_loc_4in1_center";
+    button -l "";
+    
+    button -l "shiM" -c "shi_MoveObj";
+    button -l "shiX" -c "shi_MoveObj_x";
+    button -l "shiT" -c "shi_MoveObj_ask";
+    
+    button -l "z-90" -c "string $selected[] = `ls -sl`;xform -r -os -ro 0 0 -90 $selected;";
+    button -l "z+90" -c "string $selected[] = `ls -sl`;xform -r -os -ro 0 0 90 $selected;";
+    button -l "z+45" -c "string $selected[] = `ls -sl`;xform -r -os -ro 0 0 45 $selected;";
+    
+    button -l "y-90" -c "string $selected[] = `ls -sl`;xform -r -os -ro 0 -90 0 $selected;";
+    button -l "y+90" -c "string $selected[] = `ls -sl`;xform -r -os -ro 0 90 0 $selected;";
+    button -l "y+45" -c "string $selected[] = `ls -sl`;xform -r -os -ro 0 45 0 $selected;";
+    
+    button -l "x-90" -c "string $selected[] = `ls -sl`;xform -r -os -ro -90 0 0 $selected;";
+    button -l "x+90" -c "string $selected[] = `ls -sl`;xform -r -os -ro 90 0 0 $selected;";
+    button -l "x+45" -c "string $selected[] = `ls -sl`;xform -r -os -ro 45 0 0 $selected;";
+    
+    button -l "stM+" -c "manipMoveContext -e -snap true Move";
+    button -l "stM-" -c "manipMoveContext -e -snap false Move";
+    button -l "set+" -c "shi_loc_askLocSize";
+    
+    button -l "stR+" -c "manipMoveContext -e -snap true Rotate";
+    button -l "stR-" -c "manipMoveContext -e -snap false Rotate";
+    button -l "sav+" -c "shi_loc_save";
+    
+    button -l "lsPy" -c "string $selected[]=`ls -sl`;save_list(`ls -sl`, 1)";
+    button -l "ls" -c "string $selected[]=`ls -sl`;save_list(`ls -sl`, 0)";
+    button -l "sl" -c "select -r $selected";
+    
+    button -l "mAim" -c "print \"aimConstraint -offset 0 0 0 -weight 1 -aimVector 0 1 0 -upVector 0 0 1 -worldUpType \\\"object\\\" -worldUpObject $dir2ndLoc $aimLoc $obj;\"";
+    button -l "ls.V" -c "string $selected[]=`ls -sl -fl`;string $tP=\"string $selected[]={\";for($tS in $selected){$tP+=(\"\\\"\"+$tS+\"\\\"\"+\",\");};$tP+=\"};\";$tP=`substitute \",}\" $tP \"}\"`;print(\"\\n\"+$tP+\"\\n\")";
+    button -l "Ls.N" -c "ls_win_drawUI_ls(1,`ls -sl`, 0)";
+    
+    button -l "Ls.2" -c "ls_win_drawUI_ls(2,`ls -sl`, 0)";
+    button -l "near" -c "setAttr \"perspShape.nearClipPlane\" 0.001;";
+    button -l "cPsh" -c "manipAlignTowardsObj";
+    button -l "uL" -c "lockNode -l 0";
+    button -l "atrL" -c "$temp=$gChannelBoxName;shi_lock_attr($temp)";
+    button -l "+D+" -c "string $selected[]=`ls -sl`;float $t_sp[]=`xform -q -ws -t $selected[0]`;float $t_ep[]=`xform -q -ws -t $selected[1]`;distanceDimension -sp $t_sp[0] $t_sp[1] $t_sp[2] -ep $t_ep[0] $t_ep[1] $t_ep[2];";
+}
+
+//=========  Functions   ==========
+
+global float $gLocSize;
+
+global proc shi_loc_askLocSize(){
+    /** ask for global LocSize */
+    global float $gLocSize;
+    string $text;
+    string $result = `promptDialog
+            -title "Set global loc size:"
+            -message "Enter global loc size: default 1"
+            -button "OK" -button "Cancel"
+            -defaultButton "OK" -cancelButton "Cancel"
+            -dismissString "Cancel"`;
+
+    if ($result == "OK") $tSize = `promptDialog -query -text`;
+    if($tSize != "") $gLocSize = float($tSize);
+}
+
+global proc doLocSize(string $loc){
+    /** set input Loc to global Loc size */
+    global float $gLocSize;
+    if($gLocSize<1 && $gLocSize>0) setAttr ($loc+".scale") $gLocSize $gLocSize $gLocSize;
+}
+
+global proc shi_loc_center(){
+    /** generate loc at Transform center*/
+    string $selected[] = `ls -sl -fl`;
+    string $a;
+    for($a in $selected){
+        float $pos[3] = `xform -q -ws -t $a`;
+        string $tLoc[]=`spaceLocator`;
+        move -a $pos[0] $pos[1] $pos[2] $tLoc[0];
+        doLocSize($tLoc[0]);
+    }
+    if(size($selected)==0) {
+        string $tLoc[]=`spaceLocator`;
+        doLocSize($tLoc[0]);
+    }
+}
+
+global proc shi_loc_pivot_center(){
+    /** generate loc at Pivot center*/
+    string $selected[] = `ls -sl -fl`;
+    string $a;
+    for($a in $selected){
+        float $pos[3] = `xform -q -ws -rp $a`;
+        string $tLoc[]=`spaceLocator`;
+        move -a $pos[0] $pos[1] $pos[2] $tLoc[0];
+        doLocSize($tLoc[0]);
+    }
+}
+
+global proc shi_loc_pivot_rot_center(){
+    /** generate loc at Pivot with Rotation center*/
+    string $selected[] = `ls -sl`;
+    string $a;
+    for($a in $selected){
+        /**
+        float $pos[3] = `xform -q -ws -rp $a`;
+        float $rot[3] = `xform -q -ws -ro $a`;
+        string $tLoc[]=`spaceLocator`;
+        move -a $pos[0] $pos[1] $pos[2] $tLoc[0];
+        rotate -a -ws $rot[0] $rot[1] $rot[2] $tLoc[0];
+        */
+        string $tLoc[]=`spaceLocator`;
+        string $cst[]=`parentConstraint $a $tLoc[0]`;
+        delete $cst[0];
+        doLocSize($tLoc[0]);
+    }
+}
+
+//----------
+
+global proc shi_loc_bbox_center(){
+    /** generate loc at Bounding Box center*/
+    string $selected[] = `ls -sl`;
+    string $a;
+    for($a in $selected){
+        float $tmpBB[]=`xform -q -bb $a`;
+        string $tLoc[]=`spaceLocator`;
+        move -a (($tmpBB[3]+$tmpBB[0])*0.5) (($tmpBB[4]+$tmpBB[1])*0.5) (($tmpBB[5]+$tmpBB[2])*0.5) $tLoc[0];
+        doLocSize($tLoc[0]);
+    }
+}
+
+global proc shi_loc_comp_bbox_center(){
+    /** generate loc at Component bounding box center*/
+    float $tmpBB[]=`polyEvaluate -bc`;
+    string $tLoc[]=`spaceLocator`;
+    move -a (($tmpBB[1]+$tmpBB[0])*0.5) (($tmpBB[3]+$tmpBB[2])*0.5) (($tmpBB[5]+$tmpBB[4])*0.5) $tLoc[0];
+    doLocSize($tLoc[0]);
+}
+
+global proc float[] shi_loc_comp_bbox_center_pos(string $c){
+    /** get loc pos at Component bounding box center*/
+    float $tmpBB[]=`polyEvaluate -bc $c`;
+    return {(($tmpBB[1]+$tmpBB[0])*0.5), (($tmpBB[3]+$tmpBB[2])*0.5), (($tmpBB[5]+$tmpBB[4])*0.5)};
+}
+
+global proc shi_loc_cursor_center(){
+    /** generate loc at Move tool position center*/
+    float $moveManip[] = {};
+    // switch to translate mode
+    //setToolTo $gMove;
+    // get manipulator position
+    $moveManip = `manipMoveContext -q -position Move `;
+    // create locator
+    string $locator[] = `spaceLocator -p 0 0 0`;
+    setAttr ($locator[0]+".translate") $moveManip[0] $moveManip[1] $moveManip[2];
+    doLocSize($locator[0]);
+}
+
+//----------
+
+global proc shi_loc_average_center(){
+    /** generate loc at Selected list Average center*/
+    string $selected[] = `ls -sl -fl`;
+    string $a;
+    float $avePos[3];
+    for($a in $selected){
+        float $pos[3] = `xform -q -ws -t $a`;
+        $avePos[0]+=$pos[0];
+        $avePos[1]+=$pos[1];
+        $avePos[2]+=$pos[2];
+    }
+    string $tLoc[]=`spaceLocator`;
+    move -a ($avePos[0]/size($selected)) ($avePos[1]/size($selected)) ($avePos[2]/size($selected)) $tLoc[0];
+    doLocSize($tLoc[0]);
+}
+
+
+global proc shi_loc_points_of_objs_center()
+{
+    /** generate loc at selected Meshes' vertex indexes' center*/
+    string $text;
+
+    // create a prompt dialog to request the name
+    string $result = `promptDialog 
+        -title "Vectex select tool"
+        -message "Enter Vectex Indexes (like 1,2,3 or 1 2 3):"
+        -button "Generate" -button "Select" -button "Cancel"
+        -defaultButton "OK" -cancelButton "Cancel"
+        -dismissString "Cancel"`;
+    
+    // if OK pressed
+    if ($result == "Generate") {
+        // query the entry typed by the user
+        $text = `promptDialog -query -text`;
+        
+        $tmpTxt=$text;
+        $tmpTxt= substituteAllString($tmpTxt,",","_");
+        $tmpTxt= substituteAllString($tmpTxt," ","_");
+        $numList=stringToStringArray($tmpTxt, "_");size($numList);
+        
+        string $selected[] = `ls -sl`;
+        select -cl;
+        for($tmpM in $selected){
+            for($tmpN in $numList){
+                select -add ($tmpM+".vtx["+$tmpN+"]");
+            }
+        }
+        shi_loc_center;
+    }
+    else if($result == "Select"){
+        // query the entry typed by the user
+        $text = `promptDialog -query -text`;
+        
+        $tmpTxt=$text;
+        $tmpTxt= substituteAllString($tmpTxt,",","_");
+        $tmpTxt= substituteAllString($tmpTxt," ","_");
+        $numList=stringToStringArray($tmpTxt, "_");size($numList);
+        
+        string $selected[] = `ls -sl`;
+        select -cl;
+        for($tmpM in $selected){
+            for($tmpN in $numList){
+                select -add ($tmpM+".vtx["+$tmpN+"]");
+            }
+        }
+    }
+    else {
+        //print("fine. I won't say hello then :(\n");
+    }
+}
+
+global proc shi_loc_normal_center_v2(){
+    /** generate loc at Normal position w Y Vector Align center, and z aim object Up*/
+    string $selected[]=`ls -sl -fl`;
+    vector $objUp=<<0,1,0>>;
+    
+    for($tC in $selected){
+        float $tNormal[];
+        float $tPos[];
+                
+        // determine loc position and normal
+        if(`gmatch $tC "*.f*"`){ 
+            $tNormal=shi_getNormalFromFace($tC);
+            select -r $tC;
+            $tPos=shi_loc_comp_bbox_center_pos($tC);            
+        }
+        else if(`gmatch $tC "*.vtx*"`){
+            $tNormal=shi_getNormalFromVtx($tC);
+            $tPos=`xform -q -ws -t $tC`;
+        }
+        
+        // determine obj rotation
+        string $tmpObj[]=stringToStringArray($tC, ".");
+        float $rot[3] = `xform -q -ws -ro $tmpObj[0]`;
+        
+        // determine true normal
+        vector $nVec=<<$tNormal[0],$tNormal[1],$tNormal[2]>>;
+        $nVec=rot($nVec,<<1,0,0>>,deg_to_rad($rot[0]));
+        $nVec=rot($nVec,<<0,1,0>>,deg_to_rad($rot[1]));
+        $nVec=rot($nVec,<<0,0,1>>,deg_to_rad($rot[2]));
+        float $tN[]=vec2arr($nVec);
+        
+        // determine true obj up
+        vector $upVec=$objUp;
+        $upVec=rot($upVec,<<1,0,0>>,deg_to_rad($rot[0]));
+        $upVec=rot($upVec,<<0,1,0>>,deg_to_rad($rot[1]));
+        $upVec=rot($upVec,<<0,0,1>>,deg_to_rad($rot[2]));
+        float $tUp[]=vec2arr($upVec);
+        
+        // generate loc and aim loc
+        string $newLocs[]=`spaceLocator`;
+        xform -ws -t $tPos[0] $tPos[1] $tPos[2] $newLocs[0];
+        
+        string $newLocs2[]=`spaceLocator`;
+        xform -ws -t ($tPos[0]+$tN[0]) ($tPos[1]+$tN[1]) ($tPos[2]+$tN[2]) $newLocs2[0];
+        
+        string $aimLinks[]=`aimConstraint -offset 0 0 0 -weight 1 -aimVector 0 1 0 -upVector 0 0 1 -worldUpType "vector" -worldUpVector $tUp[0] $tUp[1] $tUp[2] $newLocs2[0] $newLocs[0]`;
+        delete $aimLinks;
+        delete $newLocs2[0];
+                
+        doLocSize($newLocs[0]);
+    }
+    select -r $selected;
+}
+
+global proc shi_loc_edge_normal_center_v2(int $mode){
+    /** generate loc at Edges center aiming to its point w Y aiming Edge normal center*/
+    /** mode 0: generate edge normal at btm point */
+    /** mode 1: generate edge normal at edge center */
+    /** mode 2: generate face normal at edge center */
+    /** mode 3: generate face normal at face center */
+    string $selected[]=`ls -sl -fl`;
+    for($edge in $selected){
+        string $tV[]=`polyListComponentConversion -fe -tv $edge`;
+        $tV=`ls -fl $tV`;
+        string $tStart=$tV[0];
+        string $tEnd=$tV[1];
+        float $sPos[]=`xform -q -ws -t $tStart`;
+        float $ePos[]=`xform -q -ws -t $tEnd`;
+        
+        // face normal direction
+        string $tF[]=`polyListComponentConversion -fe -tf $edge`;
+        $tF=`ls -fl $tF`;
+        float $faVec[]=`shi_getNormalFromFace $tF[0]`;
+        float $fbVec[]=`shi_getNormalFromFace $tF[1]`;
+                
+        // generate locator
+        string $newLocs[]=`spaceLocator`;
+        
+        // determine loc position
+        if($mode==0) xform -ws -t $sPos[0] $sPos[1] $sPos[2] $newLocs[0];
+        else xform -ws -t (($ePos[0]+$sPos[0])*0.5) (($ePos[1]+$sPos[1])*0.5) (($ePos[2]+$sPos[2])*0.5)  $newLocs[0];
+        
+        string $newLocs2[]=`spaceLocator`;
+        xform -ws -t $ePos[0] $ePos[1] $ePos[2] $newLocs2[0];      
+        
+        // determine normal direction
+        float $eVec[];
+        if($mode<2){
+            $eVec[0]=($faVec[0]+$fbVec[0])/2.0;
+            $eVec[1]=($faVec[1]+$fbVec[1])/2.0;
+            $eVec[2]=($faVec[2]+$fbVec[2])/2.0;
+        }
+        else $eVec=$faVec;
+        
+        vector $nVec=<<$eVec[0],$eVec[1],$eVec[2]>>;
+        
+        // add on rotation of normal vector by obj rotation
+        $tmpObj=stringToStringArray($tStart, ".");
+        // get transform node
+        string $tmpObjTs[]=`listRelatives -parent -fullPath $tmpObj[0]`;
+        float $rot[3] = `xform -q -ws -ro $tmpObjTs[0]`;
+        $nVec=rot($nVec,<<1,0,0>>,deg_to_rad($rot[0]));
+        $nVec=rot($nVec,<<0,1,0>>,deg_to_rad($rot[1]));
+        $nVec=rot($nVec,<<0,0,1>>,deg_to_rad($rot[2]));
+        float $nVecArr[]=vec2arr($nVec);
+        
+        string $aimLinks[]=`aimConstraint -offset 0 0 0 -weight 1 -aimVector 0 0 1 -upVector 0 1 0 -worldUpType "vector" -worldUpVector $nVecArr[0] $nVecArr[1] $nVecArr[2] $newLocs2[0] $newLocs[0]`;
+        delete $aimLinks;
+        delete $newLocs2[0];
+        
+        // reposition loc for mode 3: face center
+        if($mode==3){
+            select -r $tF[0];
+            float $fPos[]=shi_loc_comp_bbox_center_pos($tF[0]);
+            xform -ws -t $fPos[0] $fPos[1] $fPos[2] $newLocs[0];
+        }
+        
+        doLocSize($newLocs[0]);
+        
+        select -r $selected;
+    }    
+}
+
+global proc string shi_loc_4in1_center(){
+    /** generate loc based on left, right, aim, up locs */
+    print("\n\nselect 4 object center(left right), aim and up)\n");
+    string $object[] = `ls -sl -fl`;
+
+    float $locFront[] = `xform -q -ws -t $object[0]`;
+    float $locBack[] = `xform -q -ws -t $object[1]`;
+    float $locPos[];
+    $locPos[0] = ($locFront[0] + $locBack[0]) *0.5;
+    $locPos[1] = ($locFront[1] + $locBack[1]) *0.5;
+    $locPos[2] = ($locFront[2] + $locBack[2]) *0.5;
+    string $locs[] = `spaceLocator`;
+    xform -ws -t $locPos[0] $locPos[1] $locPos[2] $locs[0];
+    string $aimLinks[] = `aimConstraint -offset 0 0 0 -weight 1 -aimVector 1 0 0 -upVector 0 1 0 -worldUpType "object" -worldUpObject $object[3] $object[2] $locs[0]`;
+    delete $aimLinks;
+    return $locs[0];
+}
+
+global proc shi_MoveObj(){
+    /** move object A to B by attribute */
+    string $selected[] = `ls -sl`;
+    print ($selected[0]+" is positioned at "+$selected[1]+"\n");
+    setAttr ($selected[0]+".tx") `getAttr ($selected[1]+".tx")`;
+    setAttr ($selected[0]+".ty") `getAttr ($selected[1]+".ty")`;
+    setAttr ($selected[0]+".tz") `getAttr ($selected[1]+".tz")`;
+    setAttr ($selected[0]+".rx") `getAttr ($selected[1]+".rx")`;
+    setAttr ($selected[0]+".ry") `getAttr ($selected[1]+".ry")`;
+    setAttr ($selected[0]+".rz") `getAttr ($selected[1]+".rz")`;
+}
+
+global proc shi_MoveObj_x(){
+    /** move object A to B by world xform */
+    string $selected[] = `ls -sl`;
+    print ($selected[0]+" is positioned at "+$selected[1]+"\n");
+    float $pos[3] = `xform -q -ws -t $selected[1]`;xform -ws -t $pos[0] $pos[1] $pos[2] $selected[0];
+    float $pos[3] = `xform -q -ws -ro $selected[1]`;xform -ro $pos[0] $pos[1] $pos[2] $selected[0];
+}
+
+global proc shi_MoveObj_ask()
+{
+    /** move object A by cmds */
+    string $text;
+    string $result = `promptDialog
+            -title "Super Move"
+            -message "Enter tranform: (a/r -ws/os -wd 0 0 0; -u ? -v ?)"
+            -button "move" -button "rotate" -button "scale" -button "uv" -button "Cancel"
+            -defaultButton "OK" -cancelButton "Cancel"
+            -dismissString "Cancel"`;
+     
+    if ($result == "move") {
+            $text = `promptDialog -query -text`;
+            eval("move -"+$text);
+    }
+    else if ($result == "rotate") {
+            $text = `promptDialog -query -text`;
+            eval("rotate -"+$text);
+    }
+    else if ($result == "scale") {
+            $text = `promptDialog -query -text`;
+            eval("scale -"+$text);
+    }
+    else if ($result == "uv") {
+            $text = `promptDialog -query -text`;
+            eval("polyEditUV -r 1 "+$text);
+    }
+    else {
+            //print("fine. I won't say hello then :(\n");
+    }
+}
+
+//------------- Save Loc to Mel --------------
+
+global proc shi_loc_save(){
+    /** save selected loc info to mel for regeneration*/
+    string $selected[]=`ls -sl`;
+    print "======Loc Save=============\n\n";
+    for($tmpLoc in $selected){
+        float $pos[3]=`xform -q -ws -t $tmpLoc`;
+        float $rot[3]=`xform -q -ws -ro $tmpLoc`;
+        float $scale[3]=`xform -q -ws -scale $tmpLoc`;
+        string $cmd="select -cl;spaceLocator -n \""+$tmpLoc+"\";move -a "+$pos[0]+" "+$pos[1]+" "+$pos[2]+";rotate -a "+$rot[0]+" "+$rot[1]+" "+$rot[2]+";scale -a "+$scale[0]+" "+$scale[1]+" "+$scale[2]+";\n";
+        print $cmd;
+    }
+    print "======Loc Save=============\n\n";
+}
+
+//-------------- math -----------------
+global proc vector arr2vec(float $fl[]){
+	return <<$fl[0],$fl[1],$fl[2]>>;
+}
+
+global proc float[] vec2arr(vector $v){
+	return {$v.x,$v.y,$v.z};
+}
+
+//-------------- selection list button -----------------
+
+global proc ls_win_set_add(){
+    global string $ls_win_set[];
+    select -add $ls_win_set;
+    $ls_win_set={};
+    $ls_win_set=`ls -sl`;
+    
+}
+global proc ls_win_set_remove(){
+    global string $ls_win_set[];
+    string $remove[] = `ls -sl`;
+    $ls_win_set = stringArrayRemove($remove, $ls_win_set);
+}
+
+//======================
+global proc string save_list(string $list[], int $type){
+    string $tP="";
+    if($type==0){
+        $tP="string $selected[]={";
+        for($tS in $list) $tP+=("\""+$tS+"\""+",");
+        $tP+="};";
+        $tP=`substitute ",}" $tP "}"`;
+    }
+    else {        
+        $tP="[";
+        for($tS in $list) $tP+=("\'"+$tS+"\'"+",");
+        $tP+="];";
+        $tP=`substitute ",]" $tP "]"`;
+    }
+    print("\n"+$tP+"\n");
+    return $tP;
+}
+
+global proc ls_win_drawUI_ls(int $target_win, string $list[], int $draw_mode){
+    ls_win_drawUI($target_win, stringArrayToString($list,","), $draw_mode);
+}
+
+global proc ls_win_drawUI(int $target_win, string $list_string, int $draw_mode){
+    string $ls_win_name="ls_win_"+$target_win;
+    string $list_string_quote="\""+$list_string+"\"";
+    string $array_format_string="stringToStringArray(\""+$list_string+"\","+"\",\""+")";
+    string $list[]=stringToStringArray($list_string, ",");
+    
+    if ( `window -exists $ls_win_name` ) deleteUI $ls_win_name;
+    
+    window -t ("Selection Button win: "+$target_win) -wh 200 400 -mxb 0 $ls_win_name;
+    scrollLayout; 
+    gridLayout  -numberOfColumns 2 -cwh 300 20;
+    
+    $tcmd="ls_win_drawUI_ls("+$target_win+",`ls -sl`, 0);";
+    button -l "Replace list from selection / Clear" -c $tcmd;
+    
+    $tcmd="save_list("+$array_format_string+",0);select("+$array_format_string+");";
+    button -l "Save and select all" -c $tcmd;
+    
+    // toggle add mode
+    if($draw_mode==1){
+        $tcmd="ls_win_drawUI("+$target_win+","+$list_string_quote+", 0)";
+        button -ebg true -bgc 0.5 1 0.5 -l "Mode: add to selection" -c $tcmd;
+    }
+    else {
+        $tcmd="ls_win_drawUI("+$target_win+","+$list_string_quote+", 1)";
+        button -l "Mode: add to selection" -c $tcmd;
+    }
+    // toggle remove mode
+    if($draw_mode==2){
+        $tcmd="ls_win_drawUI("+$target_win+","+$list_string_quote+", 0)";
+        button -ebg true -bgc 0.5 1 0.5 -l "Mode: remove from list" -c $tcmd;
+    }
+    else {
+        $tcmd="ls_win_drawUI("+$target_win+","+$list_string_quote+", 2)";
+        button -l "Mode: remove from list" -c $tcmd;
+    }
+    
+    for($each in $list){
+        string $buffer[]={}; 
+        tokenize $each ":" $buffer;  
+        $label=$buffer[(size($buffer)-1)];
+          
+        // mode: 0=new, 1=add, 2=delete
+        if($draw_mode==2){
+            $tcmd="select("+$array_format_string+");select -d "+$each+";ls_win_drawUI_ls("+$target_win+",`ls -sl`, 2);print "+$each+";print \"\\n\"";
+            button -ebg true -bgc 1.0 0.5 0.5 -l $label -c $tcmd;
+        }
+        else if($draw_mode==1){
+            // add mode:
+            $tcmd="select -add "+$each+";print "+$each+";print \"\\n\"";
+            button -ebg true -bgc 0.5 1 0.5 -l $label -c $tcmd;
+        }
+        else{
+            $tcmd="select -r "+$each+";print "+$each+";print \"\\n\"";
+            button -l $label -c $tcmd;
+        }
+    }
+
+    showWindow $ls_win_name;
+}
+
+global proc manipAlignTowardsObj() {
+	string $about[] = {
+		"\n",
+		"Move Manipulator Align Towards Camera",
+		" ",
+		"written by Patrick Woo",
+		"version 1: 20090901, version 3: 20091211, version 4: 20100119",
+		" ",
+		"Function:",
+		"  Aligns the translate manipulator of one selected object to",
+		"  point towards the camera of the current viewport.",
+		" ",
+		"Usage:",
+		"- select the object which you want to move towards/away from the camera of the current viewport.",
+		"- make sure your active viewport is the view that you want to move the object towards/away from.",
+		"- run this script ",
+		" "
+	};
+	
+	// New in version 1:
+	// new 1:
+	// this is an adaptation of the manipAlignTowardsObj.mel script. 
+	// this script only needs the user to select 1 object, 
+	// and uses the current view panel as the manipulator handle align target
+	
+	string $sel[] = `ls -sl -l`;
+	// print "about" message
+	for ($i=0;$i<`size $about`;$i++) { print ($about[$i]+"\n"); }
+	
+	if ((`size $sel`<=0) || (`size $sel`>1)) error "select obj to align handle towards, then the object to move";
+	
+	/*
+		if (`size $sel`==1) {
+			// resets the manipulator to align to world space and frees all 3 handles
+			manipMoveContext -e -mode 0 -activeHandle 3 Move;
+			return;
+		}
+	*/
+	string $camera, $cameraShape;
+	string $tmpArr[], $tmpStr;
+	string $cmd;
+
+	$cmd = `getPanel -withFocus`;
+	$tmpStr = `eval ("modelPanel -q -camera "+$cmd)`;
+	if (`nodeType $tmpStr`=="transform") {
+		// panel in focus is front, top or side (it is a transform node)
+		$camera = $tmpStr;
+		// $cmd = "longNameOf(\""+$camera+"\")";
+		// $camera = `eval $cmd`;
+		$camera = `longNameOf ($camera)`;
+	} else {
+		// panel in focus is a camera shape
+		clear $tmpArr;
+		$tmpArr = `listRelatives -parent -type transform -fullPath $tmpStr`;
+		$camera = $tmpArr[0];	
+	}
+
+	// print ("camera = "+$camera+"\n");
+	$cmd = "xform -q -ws -rotatePivot "+$camera;
+	// print ($cmd+"\n");
+	vector $camPos = `eval $cmd`;
+	//print ($camPos+"\n");
+
+	// finds out the current manipulator alignment axis mode before changing it
+	string $currentManipMode = `manipMoveContext -q -mode Move`;
+	if ($currentManipMode == 6) $currentManipMode = 0;
+
+	// move along custom axis, and set custom axis to be pointing 
+  // towards the worldspace of selected obj, 
+  // and active handle is x-axis pointing towards the target object
+	// after the tool exits, change the move manipulator tool back to the previous axis alignment
+	string $postCmd = "\"manipMoveContext -e -mode "+$currentManipMode+" -activeHandle 3 Move\"";
+	$cmd = "manipMoveContext -e -mode 6 -activeHandle 0 -orientTowards "+$camPos.x+" "+$camPos.y+" "+$camPos.z+" -postCommand "+$postCmd+" Move";
+	$test = `eval $cmd`;
+	select $sel[0];
+
+}
+
+global proc shi_lock_attr(string $gChannelBoxName){
+    /** toggle selected attr lock switch */
+    $temp=$gChannelBoxName;
+    string $chList[]=`channelBox -q -sma $temp`;
+    string $selected[]=`ls -sl`;
+    $newState=!`getAttr -lock ($selected[0]+"."+$chList[0])`;
+
+    for($each in $selected){
+        for($attr in $chList){
+            setAttr -lock $newState ($each+"."+$attr);
+        }
+    }
+}
