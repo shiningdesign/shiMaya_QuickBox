@@ -1,6 +1,8 @@
 # shiMaya_QuickBox
 
-This is my personal Maya toolbox, including all the  useful mel and python tools.
+This is my personal old Maya toolbox, including all the useful mel and python tools.
+
+I no longer use and maintain these old tools, so they are good only for your reference.
 
 and each category of functions are seperated into different mel/python files, like a modules system.
 
@@ -17,7 +19,7 @@ Screenshot
 ![mel_shi_onelinemaker_screenshot.png](screenshot/mel_shi_onelinemaker_screenshot.png?raw=true)
 
 
-#  Scatter ======
+#  Scatter
 
   * A GUI python Maya tool to generate geometry instances at each particle position with optional random rotation and scale.
 
@@ -46,3 +48,4 @@ Screenshot
   - scatter button to scatter.
   
  ![scatter_v3.5_screenshot.png](screenshot/scatter_v3.5_screenshot.png?raw=true)
+ ![scatter_v2.0_screenshot.png](screenshot/scatter_v2.0_screenshot.png?raw=true)
