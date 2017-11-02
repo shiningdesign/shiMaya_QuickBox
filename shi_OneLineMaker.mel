@@ -1,0 +1,34 @@
+global proc shi_OneLineMaker(){
+ 
+    string $winName = "shi_OneLineMaker";
+    string $winTitle = "One Line Mel Maker";
+    string $version = "1.0";
+ 
+    // draw the UI
+    if ( `window -exists $winName` ) deleteUI $winName; 
+    window -t ($winTitle + " " +$version) -wh 210 360 -mxb 0 $winName;
+ 
+    // scroll ability if you add this line
+    scrollLayout;
+ 
+    rowColumnLayout -numberOfColumns 1;
+        scrollField -w 200 -h 120 -tx "input text" shi_OneLineMaker_input_textEdit;
+        button -l "One Line It" -c "shi_OneLineMaker_convert_action(0)";
+        button -l "One Line Botton" -c "shi_OneLineMaker_convert_action(1)";
+        scrollField -w 200 -h 120 -tx "output text" shi_OneLineMaker_output_textEdit;
+        setParent ..;
+ 
+    showWindow $winName;
+}
+global proc shi_OneLineMaker_convert_action(int $option){
+    string $input_txt = `scrollField -q -tx shi_OneLineMaker_input_textEdit`;   
+    string $buffer[];
+    tokenize $input_txt "\n" $buffer;
+    string $output = stringArrayToString($buffer,"");
+    if($option ==1){
+        $output = substituteAllString($output, "\"", "\\\"");
+        $output = "button -l \"label\" -c "+"\""+$output+"\";";
+    }
+    scrollField -e -tx $output shi_OneLineMaker_output_textEdit;
+}
+shi_OneLineMaker();
